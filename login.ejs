@@ -7,11 +7,11 @@
     <title>Login</title>
 </head>
 <body>
-    <form action="/register" method="POST">
+    <form action="/login" method="POST">
         <h1>Login</h1>
         <section>
             <label for="email">Email</label>
-            <input type="email" name="username" placeholder="Email" />
+            <input type="email" name="username" placeholder="Email" /> <!-- username needs to be used for the name attribute due to the way passport-local-mongoose handles authentication -->
         </section>
         <section>
             <label for="password">Password</label>

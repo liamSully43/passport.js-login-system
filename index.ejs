@@ -7,9 +7,11 @@
     <title>Home</title>
 </head>
 <body>
-    <div class="center-container">
-        <h1>Name</h1>
-        <h2>Email</h2>
-    </div>
+    <form class="center-container" action="/logout" method="GET">
+        <h1>Name: <%= name %></h1>
+        <h2>Email: <%= email %></h2>
+        <br />
+        <button>Logout</button>
+    </form>
 </body>
 </html>

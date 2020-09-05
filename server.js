@@ -1,13 +1,32 @@
 // jshint: 6;
 
-require("dotenv").config();
+require("dotenv").config(); // needs to be done asap in the script to prevent any errors with accessing .env
 const express = require("express");
-const bodyParser = require("body-parser");
-const mongoose = require("mongoose");
+const bodyParser = require("body-parser"); // used for routing
+const mongoose = require("mongoose"); // database
+const session = require("express-session"); // setting up login sessions
 const passport = require("passport");
-const passportLocal = require("passport-local");
-const session = require("express-session");
-const passportLocalMongoose = require("passport-local-mongoose");
+const passportLocalMongoose = require("passport-local-mongoose"); // middleware for the database & passport login system
+
+const app = express();
+
+// =======================================================================================================================================================================================
+// -- Configurations --
+
+app.set("view engine", "html");
+app.use(express.static(__dirname + '/public'));  // used for the routing
+app.use(bodyParser.urlencoded({extended: true})); // used to link CSS to the EJS files
+
+app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+}));
+
+app.use(passport.initialize()); // used for logging in
+app.use(passport.session()); // used to keep users logged in across tabs
+
+// Establish the Database
 
 mongoose.connect(process.env.API_KEY, { useNewUrlParser: true, useUnifiedTopology: true });
 mongoose.set("useCreateIndex", true);
@@ -22,34 +41,60 @@ userSchema.plugin(passportLocalMongoose);
 
 const User = new mongoose.model("Trial-user", userSchema);
 
-const app = express();
-app.set("view engine", "html");
-app.use(express.static(__dirname + '/public'));
-app.use(bodyParser.urlencoded({extended: true}));
+passport.use(User.createStrategy()); // used for authentication
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());
 
-app.use(session({
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-}));
-
-app.use(passport.initialize());
-app.use(passport.session());
+// =======================================================================================================================================================================================
+// -- Web Routing --
 
 app.get("/", function(req, res) {
-    res.render(`${__dirname}/index.ejs`);
+    if(req.isAuthenticated()) {
+        res.render(`${__dirname}/index.ejs`, { name: req.user.name, email: req.user.username });
+    }
+    else {
+        res.redirect("/login");
+    }
 });
 
 app.get("/login", function(req, res) {
-    res.render(`${__dirname}/login.ejs`);
+    if(req.isAuthenticated()) {
+        res.redirect("/");
+    }
+    else {
+        res.render(`${__dirname}/login.ejs`);
+    }
+});
+
+app.post("/login", function(req, res) {
+    const user = new User({
+        username: req.body.username,
+        password: req.body.password
+    });
+    // logs the user in
+    req.login(user, function(err) {
+        if(err) {
+            console.log(err);
+        }
+        else {
+            passport.authenticate("local")(req, res, function() {
+                res.redirect("/");
+            })
+        }
+    })
 });
 
 app.get("/register", function(req, res) {
-    res.render(`${__dirname}/register.ejs`);
+    if(req.isAuthenticated()) {
+        res.redirect("/");
+    }
+    else {
+        res.render(`${__dirname}/register.ejs`);
+    }
 });
-
+// registers new users
 app.post("/register", function(req, res) {
-    User.register({username: req.body.username, name: req.body.name, password: req.body.password}, req.body.password, function(err, user) {
+    User.register({name: req.body.name, username: req.body.username}, req.body.password, function(err, user) {
         if(err) {
             console.log(err);
             res.redirect("/register");
@@ -57,10 +102,15 @@ app.post("/register", function(req, res) {
         else {
             passport.authenticate("local")(req, res, function() {
                 res.redirect("/");
-            });
+            })
         }
     });
 });
+
+app.get("/logout", function(req, res) {
+    req.logout();
+    res.redirect("/login");
+})
 
 app.listen(3000, function() {
     console.log("live on port 3000");
